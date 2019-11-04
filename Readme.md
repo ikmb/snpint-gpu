@@ -7,7 +7,7 @@ Installation instructions:
 --------------------------
 
 SNPInt-GPU requires a Linux-based operating system (e.g.\ Ubuntu) with an up-to-date C++ compiler and CUDA libraries. Furthermore, Zlib, OpenMP, BOOST and TBB libraries as well as the Cmake are required.
-We tested our software on an Ubuntu 19.04 system with GCC-8, CUDA 10.1, BOOST 1.65.1 and TBB 4.4. Please ensure that you have installed the required software before continuing with the installation. Please also note, that the CUDA libraries are still required, even if you don't want to use GPU acceleration.
+We tested our software on an Ubuntu 19.04 system with GCC-8, CUDA 10.1, BOOST 1.65.1 and TBB 2018.0. Please ensure that you have installed the required software before continuing with the installation. Please also note, that the CUDA libraries are still required, even if you don't want to use GPU acceleration.
 
 The step by step compilation procedure is as follows. 
 
