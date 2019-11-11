@@ -192,17 +192,17 @@ __device__ __host__ int calcAlleleFrequenciesAndHetHet_2way(const uint32_t *case
             int solcnt = cubic_real_roots(0.5 * (double)(f11 + f22 - f12 - f21 - 3*k), 0.5 * (double)(f11 * f22 + f12 * f21 + k*(f12 + f21 - f11 - f22 + k)), -0.5 * (double)(k * f11 * f22), x);
 
             // filter solutions that do not fit (i.e. negative ones and those larger than K)
-            // according to PLINK code, at least one solution has to fit, so we implement this a bit naive,
-            // and we are tolerant according to an epsilon
+            // according to PLINK code, at least one solution has to fit,
+            // but as we encountered occasional segfaults, we introduce a limit now
             r = solcnt-1;
             // filter negative solutions
-            while (x[l] < -SMALLISH_EPSILON)
+            while (l < 2 && x[l] < -SMALLISH_EPSILON)
                 l++;
             // set almost zero results to zero
             if (x[l] < SMALLISH_EPSILON)
                 x[l] = 0.0;
             // filter solutions > K
-            while (x[r] > k + SMALLISH_EPSILON)
+            while (r > l && x[r] > k + SMALLISH_EPSILON)
                 r--;
             // set results very near to K to exactly K
             if (x[r] > k - SMALLISH_EPSILON)
@@ -797,8 +797,8 @@ __device__ __host__ void MutualInformationKernel2WayCore(const uint32_t *ctable,
 //        assert(result.getScoreFields() >= 3);
         double rsq_high, rsq_low;
         calcLD_2way(cases, controls, numCases, numControls, &rsq_high, &rsq_low); //, id[SNP_A], id[SNP_B]);
-        result.setScore(s++, rsq_high);
-        result.setScore(s++, rsq_low);
+        result.setScore(s++, static_cast<GPUEngine::score_type>(rsq_high));
+        result.setScore(s++, static_cast<GPUEngine::score_type>(rsq_low));
     }
 
     if (decomp) {
