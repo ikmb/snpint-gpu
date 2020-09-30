@@ -144,7 +144,8 @@ add_definitions (
     -DHAVE_SM_60
     )
 
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70")
+#set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70;-gencode=arch=compute_50,code=sm_50")
 set(CUDA_NVCC_FLAGS_DEBUG "${CUDA_NVCC_FLAGS_DEBUG};-O0;-g;-G")
 set(CUDA_NVCC_FLAGS_RELEASE "-O3")
 set(CUDA_NVCC_FLAGS_RELWITHDEBINFO "${CUDA_NVCC_FLAGS_RELWITHDEBINFO};-O2;-g;-G")

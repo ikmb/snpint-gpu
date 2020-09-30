@@ -58,8 +58,9 @@ struct pci_device {
 }
 
 static std::vector<struct pci_ident> pci_ident_gpu = {
-    {0x10DE, 0x15F8}, // NVIDIA; Tesla P100 16G/PCIE
-    {0x10DE, 0x1DB6}, // NVIDIA; Tesla V100 32G/PCIE
+    {0x10DE, 0x15F8}, // NVIDIA Tesla P100 16G/PCIE
+    {0x10DE, 0x1DB6}, // NVIDIA Tesla V100 32G/PCIE
+    {0x10DE, 0x137A}  // NVIDIA Quadro M500M
 };
 
 static int readHex(const std::string& file) {
