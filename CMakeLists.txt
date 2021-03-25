@@ -59,7 +59,7 @@ set(CUDA_BIN_PATH "/opt/cuda/bin")
 set(GPU_DEPLOYMENT_KIT_ROOT_DIR "/opt/cuda")
 find_package(NVML REQUIRED)
 find_package(CUDA 10.0 REQUIRED)
-set(CUDA_HOST_COMPILER "/usr/bin/gcc-8")
+set(CUDA_HOST_COMPILER "/usr/bin/gcc-9")
 find_package(Boost 1.65.1
     REQUIRED
     COMPONENTS
