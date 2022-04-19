@@ -42,14 +42,14 @@ using namespace std;
 namespace hostsystem {
 
 namespace {
-struct pci_ident {
-    int vendor;
-    int device;
-};
-
-static bool operator==(const struct pci_ident& lhs, const struct pci_ident& rhs) {
-    return (lhs.vendor == rhs.vendor) && (lhs.device == rhs.device);
-}
+//struct pci_ident {
+//    int vendor;
+//    int device;
+//};
+//
+//static bool operator==(const struct pci_ident& lhs, const struct pci_ident& rhs) {
+//    return (lhs.vendor == rhs.vendor) && (lhs.device == rhs.device);
+//}
 
 struct pci_device {
     int bus;
@@ -57,51 +57,56 @@ struct pci_device {
 };
 }
 
-static std::vector<struct pci_ident> pci_ident_gpu = {
-    {0x10DE, 0x15F8}, // NVIDIA Tesla P100 16G/PCIE
-    {0x10DE, 0x1DB6}, // NVIDIA Tesla V100 32G/PCIE
-    {0x10DE, 0x137A}  // NVIDIA Quadro M500M
-};
+static const int pci_ident_gpu_vendor = 0x10DE;
+//static vector<struct pci_ident> pci_ident_gpu = {
+//    {0x10DE, 0x15F8}, // NVIDIA Tesla P100 16G/PCIE
+//    {0x10DE, 0x1DB6}, // NVIDIA Tesla V100 32G/PCIE
+//    {0x10DE, 0x137A}  // NVIDIA Quadro M500M
+//};
 
-static int readHex(const std::string& file) {
+static int readHex(const string& file) {
     int result;
-    std::ifstream f(file);
-    f >> std::hex >> result;
+    ifstream f(file);
+    f >> hex >> result;
     f.close();
     return result;
 }
 
 
-static std::vector<struct pci_device> findDevices(const std::vector<struct pci_ident>& idents) {
-    std::vector<struct pci_device> devices;
+//static vector<struct pci_device> findDevices(const vector<struct pci_ident>& idents) {
+static vector<struct pci_device> findDevices(const int ident_vendor) {
+    vector<struct pci_device> devices;
 
     DIR* dir = opendir("/sys/bus/pci/devices");
     struct dirent *entry = NULL;
 
     while((entry = readdir(dir))) {
         if(entry->d_type == DT_LNK) {
-            struct pci_ident this_device;
-            std::stringstream ss;
+//            struct pci_ident this_device;
+            int this_device_vendor;
+            stringstream ss;
             ss << "/sys/bus/pci/devices/";
             ss << entry->d_name;
             ss << "/vendor";
 
-            this_device.vendor = readHex(ss.str());
-            ss = std::stringstream();
-            ss << "/sys/bus/pci/devices/";
-            ss << entry->d_name;
-            ss << "/device";
-            this_device.device = readHex(ss.str());
+//            this_device.vendor = readHex(ss.str());
+            this_device_vendor = readHex(ss.str());
+//            ss = stringstream();
+//            ss << "/sys/bus/pci/devices/";
+//            ss << entry->d_name;
+//            ss << "/device";
+//            this_device.device = readHex(ss.str());
 
-            if(std::find(std::begin(idents), std::end(idents), this_device) != std::end(idents)) {
+//            if(find(begin(idents), end(idents), this_device) != end(idents)) {
+            if(this_device_vendor == ident_vendor) {
                 int bus = 0, slot = 0;
-                std::string token;
-                std::istringstream name(entry->d_name);
+                string token;
+                istringstream name(entry->d_name);
 
-                std::getline(name, token, ':'); // extract domain and skip it
-                name >> std::hex >> bus;
-                std::getline(name, token, ':'); // extract bus remainder and skip it
-                name >> std::hex >> slot;
+                getline(name, token, ':'); // extract domain and skip it
+                name >> hex >> bus;
+                getline(name, token, ':'); // extract bus remainder and skip it
+                name >> hex >> slot;
 
 
                 devices.push_back( {bus, slot} );
@@ -111,15 +116,16 @@ static std::vector<struct pci_device> findDevices(const std::vector<struct pci_i
     return devices;
 }
 
-HostSystem::HostSystem(std::vector<unsigned> allowed_gpus)
+HostSystem::HostSystem(vector<unsigned> allowed_gpus)
     : gpus()
 {
-    std::vector<struct pci_device> devices;
+    vector<struct pci_device> devices;
 
     // Initialize NVML
     nvmlInit();
     devices.clear();
-    devices = findDevices(pci_ident_gpu);
+//    devices = findDevices(pci_ident_gpu);
+    devices = findDevices(pci_ident_gpu_vendor);
 
     // Filter GPUs
     for(const pci_device& d: devices) {

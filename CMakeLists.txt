@@ -54,11 +54,11 @@ find_package(ZLIB REQUIRED)
 # NVIDIA
 cmake_policy(SET CMP0077 NEW)
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-set(CUDA_TOOLKIT_ROOT_DIR "/opt/cuda")
-set(CUDA_BIN_PATH "/opt/cuda/bin")
-set(GPU_DEPLOYMENT_KIT_ROOT_DIR "/opt/cuda")
+#set(CUDA_TOOLKIT_ROOT_DIR "/opt/cuda")
+#set(CUDA_BIN_PATH "/opt/cuda/bin")
+#set(GPU_DEPLOYMENT_KIT_ROOT_DIR "/opt/cuda")
 find_package(NVML REQUIRED)
-find_package(CUDA 10.0 REQUIRED)
+find_package(CUDA 11.0 REQUIRED)
 set(CUDA_HOST_COMPILER "/usr/bin/gcc-9")
 find_package(Boost 1.65.1
     REQUIRED
@@ -141,11 +141,11 @@ set(cpp_sources
 
 add_definitions (
     -D_FORCE_INLINES
-    -DHAVE_SM_60
     )
 
+#set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70;-gencode=arch=compute_50,code=sm_50")
 #set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_60;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70;-gencode=arch=compute_50,code=sm_50")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-Xcompiler;-Wall;-arch=sm_70;-gencode=arch=compute_60,code=sm_60;-gencode=arch=compute_70,code=sm_70;-gencode=arch=compute_80,code=sm_80;-gencode=arch=compute_86,code=sm_86")
 set(CUDA_NVCC_FLAGS_DEBUG "${CUDA_NVCC_FLAGS_DEBUG};-O0;-g;-G")
 set(CUDA_NVCC_FLAGS_RELEASE "-O3")
 set(CUDA_NVCC_FLAGS_RELWITHDEBINFO "${CUDA_NVCC_FLAGS_RELWITHDEBINFO};-O2;-g;-G")
