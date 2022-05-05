@@ -59,7 +59,7 @@ set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 #set(GPU_DEPLOYMENT_KIT_ROOT_DIR "/opt/cuda")
 find_package(NVML REQUIRED)
 find_package(CUDA 11.0 REQUIRED)
-set(CUDA_HOST_COMPILER "/usr/bin/gcc-9")
+set(CUDA_HOST_COMPILER "/usr/bin/gcc-10")
 find_package(Boost 1.65.1
     REQUIRED
     COMPONENTS
@@ -67,7 +67,7 @@ find_package(Boost 1.65.1
     program_options
 )
 
-find_package(TBB 2018.0 REQUIRED)
+find_package(TBB REQUIRED)
 
 # collect linker options
 set(linker_opts
@@ -76,9 +76,10 @@ set(linker_opts
   ${CMAKE_THREAD_LIBS_INIT}
   ${CUDA_LIBRARIES}
   ${NVML_LIBRARY}
-  ${TBB_LIBRARIES}
+#  ${TBB_LIBRARIES}
   ${Boost_LIBRARIES}
   rt
+  tbb
 )
 
 # collect compiler options
@@ -90,7 +91,7 @@ include_directories(
     SYSTEM "${ZLIB_INCLUDE_DIRS}"
     SYSTEM "${Boost_INCLUDE_DIRS}"
     SYSTEM "${NVML_INCLUDE_DIR}"
-    SYSTEM "${TBB_INCLUDE_DIRS}"
+#    SYSTEM "${TBB_INCLUDE_DIRS}"
     "${CMAKE_BINARY_DIR}/generated"
 )
 
@@ -98,7 +99,7 @@ set(OPT_SCORE_TYPE	double	CACHE STRING "Score precision (double or float)")
 
 add_definitions(
     -DSCORE_TYPE=${OPT_SCORE_TYPE}
-    ${TBB_DEFINITIONS}
+#    ${TBB_DEFINITIONS}
     -DTBB_USE_EXCEPTIONS
 #    -DDEBUG
 )
