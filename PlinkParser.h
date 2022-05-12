@@ -23,24 +23,26 @@
 
 #include "SNPDB.h"
 
+using namespace std;
+
 class PlinkParser
 {
 public:
 
-    explicit PlinkParser(const std::string &bim, const std::string &bed, const std::string &fam);
+    explicit PlinkParser(const string &bim, const string &bed, const string &fam);
 
     void parse(SNPDB &target, size_t snp_word_size = 1);
 
     static const size_t input_buffer_size = 1024*1024;
 private:
 
-    std::string bimfile;
-    std::string bedfile;
-    std::string famfile;
+    string bimfile;
+    string bedfile;
+    string famfile;
 
-    void parseFam(std::vector<SNPDB::SampleInfo> &samples);
-    void parseBim(std::vector<SNPDB::SNPInfo> &snps);
-    void parseBed(SNPDB &target);
+    void parseFam(vector<SNPDB::SampleInfo> &samples, vector<bool> &ignored, size_t &numcases);
+    void parseBim(vector<SNPDB::SNPInfo> &snps);
+    void parseBed(SNPDB &target, const vector<bool> &ignored_samples);
 
 };
 

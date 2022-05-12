@@ -29,12 +29,12 @@
 
 using namespace std;
 
-static bool file_exists(const std::string &filename) {
+static bool file_exists(const string &filename) {
     struct stat buffer;
     return (stat (filename.c_str(), &buffer) == 0);
 }
 
-static void bail_if_not_readable(const std::string &filename) {
+static void bail_if_not_readable(const string &filename) {
     int ret = access(filename.c_str(), R_OK);
     if(ret == 0)
         return;
@@ -42,11 +42,11 @@ static void bail_if_not_readable(const std::string &filename) {
     throw system_error(errno, system_category(), filename);
 }
 
-PlinkParser::PlinkParser(const std::string &bim, const string &bed, const string &fam)
+PlinkParser::PlinkParser(const string &bim, const string &bed, const string &fam)
     : bimfile(bim), bedfile(bed), famfile(fam)
 {}
 
-void PlinkParser::parseFam(vector<SNPDB::SampleInfo> &samples) {
+void PlinkParser::parseFam(vector<SNPDB::SampleInfo> &samples, vector<bool> &ignored, size_t &numcases) {
 
     if(!file_exists(famfile))
         throw runtime_error("Could not find a FAM file that belongs to the given dataset");
@@ -55,19 +55,20 @@ void PlinkParser::parseFam(vector<SNPDB::SampleInfo> &samples) {
 
     ifstream fam(famfile);
 
-    string line, tmp;
-    unsigned long line_no = 0;
-    int missing_pheno_count = 0;
+    string line, sexpheno;
+    size_t line_no = 0;
+    size_t missing_pheno_count = 0;
+    numcases = 0;
     while(getline(fam, line)) {
         line_no++;
 
         SNPDB::SampleInfo info;
         istringstream s(line);
 
-        if(! (s >> info.family >> info.within_family >> info.father >> info.mother >> tmp) )
+        if(! (s >> info.family >> info.within_family >> info.father >> info.mother >> sexpheno) )
             throw runtime_error("Malformed FAM file on line " + to_string(line_no));
 
-        switch(std::stoi(tmp)) {
+        switch(stoi(sexpheno)) {
         case 1:
             info.sex = SNPDB::SexCode::Male;
             break;
@@ -79,15 +80,16 @@ void PlinkParser::parseFam(vector<SNPDB::SampleInfo> &samples) {
             break;
         }
 
-        if(!(s >> tmp))
+        if(!(s >> sexpheno))
             throw runtime_error("FAM file did not specify any phenotypes.");
 
-        switch(std::stoi(tmp)) {
+        switch(stoi(sexpheno)) {
         case 1:
             info.pheno = SNPDB::Phenotype::Control;
             break;
         case 2:
             info.pheno = SNPDB::Phenotype::Case;
+            numcases++;
             break;
         default:
             info.pheno = SNPDB::Phenotype::Missing;
@@ -95,13 +97,16 @@ void PlinkParser::parseFam(vector<SNPDB::SampleInfo> &samples) {
         }
 
         // count but ignore samples with missing phenotypes
-        if (info.pheno == SNPDB::Phenotype::Missing)
+        if (info.pheno == SNPDB::Phenotype::Missing) {
             missing_pheno_count++;
-        else
+            ignored.push_back(true);
+        } else {
             samples.push_back(info);
+            ignored.push_back(false);
+        }
     }
     if (missing_pheno_count)
-        std::cerr << "\nWARNING! Ignored " << missing_pheno_count << " samples with missing phenotype after .fam parsing." << std::endl;
+        cerr << "\nWARNING! Ignored " << missing_pheno_count << " samples with missing phenotype." << endl;
 }
 
 void PlinkParser::parseBim(vector<SNPDB::SNPInfo> &snps) {
@@ -111,7 +116,7 @@ void PlinkParser::parseBim(vector<SNPDB::SNPInfo> &snps) {
     ifstream bim(bimfile);
 
     string line;
-    unsigned long line_no = 0;
+    size_t line_no = 0;
     while(getline(bim, line)) {
         line_no++;
 
@@ -125,7 +130,7 @@ void PlinkParser::parseBim(vector<SNPDB::SNPInfo> &snps) {
     }
 }
 
-void PlinkParser::parseBed(SNPDB& target) {
+void PlinkParser::parseBed(SNPDB& db, const vector<bool> &ignored_samples) {
 
     /*
     Source format: https://www.cog-genomics.org/plink2/formats#bed
@@ -136,7 +141,7 @@ void PlinkParser::parseBed(SNPDB& target) {
 
     // set a suitably large read-ahead buffer and open bed file
     ifstream bed;
-    bed.open(bedfile, std::ios_base::binary | std::ios_base::in);
+    bed.open(bedfile, ios_base::binary | ios_base::in);
 
     // check file magic
     char magic[3];
@@ -146,96 +151,86 @@ void PlinkParser::parseBed(SNPDB& target) {
 
     // load bed file for first phenotype
     // reserve space for exactly one array of samples (i.e. one SNP)
-    const streamsize samples_size = target.getSampleCount() / 4 + !!(target.getSampleCount() % 4);
-    char *samples = new char[samples_size];
+    size_t samplecnt = ignored_samples.size(); // this reflects the size of all samples including ignored ones
+    streamsize samples_size = samplecnt / 4 + (samplecnt % 4 ? 1 : 0);
+    char *gts = new char[samples_size];
 
-    // read bunches of samples (one SNP at a time) and use phenotype #0 for initial database setup
-    unsigned sampleCount = target.getSampleCount();
-    unsigned unrolled = (sampleCount / 4) * 4;
-
-    static std::array<SNPDB::Genotype, 4> translateGenotypes {
+    static array<SNPDB::Genotype, 4> translateGenotypes {
         {SNPDB::Genotype::HomozygousVariant, // Plink 0
         SNPDB::Genotype::Invalid,            // Plink 1
         SNPDB::Genotype::Heterozygous,       // Plink 2
         SNPDB::Genotype::HomozygousWild}     // Plink 3
     };
 
-    std::vector<bool> casephenos(sampleCount);
-    for (unsigned i = 0; i < sampleCount; i++)
-        casephenos[i] = target.getSampleInfo(i).pheno == SNPDB::Phenotype::Case;
+    vector<bool> casephenos(db.getSampleCount()); // only for not-ignored samples!
+    for (unsigned i = 0; i < db.getSampleCount(); i++)
+        casephenos[i] = db.getSampleInfo(i).pheno == SNPDB::Phenotype::Case;
 
-    while(bed.read(samples, samples_size)) {
+    // read bunches of samples (one SNP at a time) and use phenotype #0 for initial database setup
+    unsigned unrolled = (samplecnt / 4) * 4;
+    while(bed.read(gts, samples_size)) {
 
         auto curr_is_case = casephenos.begin();
         // iterate over samples
-        for(unsigned i = 0; i < unrolled; /* no increment */) {
-            unsigned current_gtblock = samples[i/4];
+        for(unsigned i = 0; i < unrolled; /* no increment */) { // much faster!!!
+            unsigned current_gtblock = gts[i/4];
             unsigned current_gt = current_gtblock & 3;
-            //SNPDB::Phenotype current_pheno = target.getSampleInfo(i).pheno;
-            //target.addSample(translateGenotypes[current_gt], current_pheno);
-            target.addSample(translateGenotypes[current_gt], *curr_is_case);
+            if (!ignored_samples[i])
+                db.addSample(translateGenotypes[current_gt], *curr_is_case++);
+            i++;
 
-            ++i;
-            curr_is_case++;
             current_gtblock >>= 2;
             current_gt = current_gtblock & 3;
-            //current_pheno = target.getSampleInfo(i).pheno;
-            //target.addSample(translateGenotypes[current_gt], current_pheno);
-            target.addSample(translateGenotypes[current_gt], *curr_is_case);
+            if (!ignored_samples[i])
+                db.addSample(translateGenotypes[current_gt], *curr_is_case++);
+            i++;
 
-            ++i;
-            curr_is_case++;
             current_gtblock >>= 2;
             current_gt = current_gtblock & 3;
-            //current_pheno = target.getSampleInfo(i).pheno;
-            //target.addSample(translateGenotypes[current_gt], current_pheno);
-            target.addSample(translateGenotypes[current_gt], *curr_is_case);
+            if (!ignored_samples[i])
+                db.addSample(translateGenotypes[current_gt], *curr_is_case++);
+            i++;
 
-            ++i;
-            curr_is_case++;
             current_gtblock >>= 2;
             current_gt = current_gtblock & 3;
-            //current_pheno = target.getSampleInfo(i).pheno;
-            //target.addSample(translateGenotypes[current_gt], current_pheno);
-            target.addSample(translateGenotypes[current_gt], *curr_is_case);
-            ++i;
-            curr_is_case++;
+            if (!ignored_samples[i])
+                db.addSample(translateGenotypes[current_gt], *curr_is_case++);
+            i++;
         }
 
-        for(unsigned i = unrolled; i < sampleCount; i++) {
-            unsigned current_gt = (samples[i / 4] >> (i%4)*2) & 3;
-            //SNPDB::Phenotype current_pheno = target.getSampleInfo(i).pheno;
-            //target.addSample(translateGenotypes[current_gt], current_pheno);
-            target.addSample(translateGenotypes[current_gt], *curr_is_case);
+        for(unsigned i = unrolled; i < samplecnt; i++) {
+            unsigned current_gt = (gts[i / 4] >> (i%4)*2) & 3;
+            if (!ignored_samples[i])
+                db.addSample(translateGenotypes[current_gt], *curr_is_case++);
         }
 
         // advance to next SNP
-        target.finishSNP();
+        db.finishSNP();
     }
 
-    delete[] samples;
+    delete[] gts;
 
 }
 
-void PlinkParser::parse(SNPDB &target, size_t snp_word_size) {
-    unsigned long sample_count, cases = 0, snp_count;
+void PlinkParser::parse(SNPDB &db, size_t snp_word_size) {
+    size_t sample_count, cases = 0, snp_count;
+    vector<bool> ignored_samples;
     {
-        std::vector<SNPDB::SampleInfo> samples;
-        parseFam(samples);
+        vector<SNPDB::SampleInfo> samples;
+        parseFam(samples, ignored_samples, cases);
         sample_count = samples.size();
-        cases = count_if(begin(samples), end(samples), [](const SNPDB::SampleInfo &s) { return s.pheno == SNPDB::Phenotype::Case; });
-        target.setSampleInfo(std::move(samples));
+        db.setSampleInfo(move(samples));
     }
 
     {
-        std::vector<SNPDB::SNPInfo> snps;
+        vector<SNPDB::SNPInfo> snps;
         parseBim(snps);
         snp_count = snps.size();
-        target.setSNPInfo(std::move(snps));
+        db.setSNPInfo(move(snps));
     }
 
-    unsigned long controls = sample_count - cases; // works since we ignore missing phenotypes
-    target.initialize(snp_count, cases, controls, snp_word_size);
+    size_t controls = sample_count - cases; // works since we ignore missing phenotypes
+    db.initialize(snp_count, cases, controls, snp_word_size);
 
-    parseBed(target);
+    parseBed(db, ignored_samples);
 }
